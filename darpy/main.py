@@ -7,7 +7,16 @@ import argparse
 
 from darpy.version import __version__
 
-PIP_DOWNLOAD_CMD = 'pip --isolated --no-cache-dir download -d'
+PIP_CMD = 'pip --isolated --no-cache-dir'
+
+_PIP_DOWNLOAD_CMD = PIP_CMD + ' download --dest "{}"'
+PIP_DOWNLOAD_SRC_CMD = PIP_CMD + ' download --dest "{}" -e "{}"'
+PIP_DOWNLOAD_REQ_CMD = PIP_CMD + ' download --dest "{}" -r "{}"'
+
+PIP_INSTALL_CMD = (
+    PIP_CMD +
+    ' install --no-index --find-links "{0}" --ignore-installed "{0}"/*')
+CWD = os.getcwd()
 
 
 def _run(cmd):
@@ -19,13 +28,20 @@ def execute_pack(args):
     packdir = tempfile.mkdtemp()
     print('packing into {}'.format(packdir), file=sys.stderr)
     for src in args.src:
-        _run('{} "{}" -e "{}"'.format(PIP_DOWNLOAD_CMD, packdir, src))
+        _run(PIP_DOWNLOAD_SRC_CMD.format(packdir, src))
     for req in args.requirements:
-        _run('{} "{}" -r "{}"'.format(PIP_DOWNLOAD_CMD, packdir, req))
+        _run(PIP_DOWNLOAD_REQ_CMD.format(packdir, req))
+    _run('tar -C "{}" -czf "{}" .'
+         .format(packdir, os.path.join(CWD, 'darpy-pack.tgz')))
+    _run('rm -r "{}"'.format(packdir))
 
 
 def execute_unpack(args):
-    raise NotImplementedError
+    unpackdir = tempfile.mkdtemp()
+    print('unpacking into {}'.format(unpackdir), file=sys.stderr)
+    _run('tar -C "{}" -xzf "{}" .'.format(unpackdir, args.PKG_FILE))
+    _run(PIP_INSTALL_CMD.format(unpackdir))
+    _run('rm -r "{}"'.format(unpackdir))
 
 
 def parse_args():
@@ -57,6 +73,9 @@ def parse_args():
 
     unpack_parser.add_argument(
         'PKG_FILE', help='An archive built with `darpy pack`')
+    unpack_parser.add_argument(
+        '--virtualenv', help=('Unpack into virtualenv (as opposed to whatever '
+                              'the current `pip` is wired up to)'))
 
     return parser.parse_args()
 
