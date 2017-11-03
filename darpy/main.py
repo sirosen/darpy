@@ -40,7 +40,11 @@ def execute_unpack(args):
     unpackdir = tempfile.mkdtemp()
     print('unpacking into {}'.format(unpackdir), file=sys.stderr)
     _run('tar -C "{}" -xzf "{}" .'.format(unpackdir, args.PKG_FILE))
-    _run(PIP_INSTALL_CMD.format(unpackdir))
+    if args.virtualenv:
+        pip_prefix = os.path.join(args.virtualenv, 'bin/python') + ' -m '
+    else:
+        pip_prefix = ''
+    _run(pip_prefix + PIP_INSTALL_CMD.format(unpackdir))
     _run('rm -r "{}"'.format(unpackdir))
 
 
